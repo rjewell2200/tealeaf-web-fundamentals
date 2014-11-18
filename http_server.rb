@@ -16,7 +16,7 @@ loop do
   connection.puts "Content-Type: text/html"
   connection.puts "Server: My Http Server"
   connection.puts
-  connection.puts "Hi there, greetings from the server!"
+  connection.puts File.read('documents/hello_world.html')
   connection.close
-  puts "Response sent and connection closed."
+  puts 'Response sent and connection closed.'
 end
