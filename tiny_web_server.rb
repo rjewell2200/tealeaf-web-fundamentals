@@ -1,6 +1,6 @@
 require 'socket'
 require 'logger'
-require './surfing_app'
+require 'rack'
 
 class TinyWebServer
   def initialize(host, port)
@@ -23,14 +23,31 @@ class TinyWebServer
       end until message_line.chomp == ""
       response = app.call(env)
       @logger.info "Sending response..."
-      connection.puts "HTTP/1.1 #{response[0]} #{response_status(response[0])}"
-      connection.puts "Date: #{Time.now.ctime}"
-      connection.puts "Content-Type: #{response[1]['Content-Type']}"
-      connection.puts "Server: Tiny Web Server"
-      connection.puts
-      connection.puts response[2][0]
+      status, headers, body = app.call(env)
+      write_status(connection, status)
+      write_headers(connection, headers)
+      write_body(connection, body)
       connection.close
       @logger.info "Response sent and connection closed."
+    end
+  end
+
+  def write_status(connection, status_code)
+    connection.puts "HTTP/1.1 #{status_code} #{status_word(status_code)}"
+  end
+
+  def write_headers(connection, headers)
+    headers.each do |key, value|
+      connection.puts "#{key} #{value}\r\n"
+    end
+    connection.puts "Date: #{Time.now.ctime}"
+    connection.puts "Server: Tiny Web Server"
+    connection.puts "\r\n"
+  end
+
+  def write_body(connection, body)
+    body.each do |chunk|
+      connection.puts chunk
     end
   end
 
@@ -39,7 +56,7 @@ class TinyWebServer
     {method: method, path: path, protocol: protocol}
   end
 
-  def response_status(response_code)
+  def status_word(response_code)
     case response_code
     when 200
       "OK"
@@ -49,4 +66,14 @@ class TinyWebServer
   end
 end
 
-TinyWebServer.new('localhost', 2000).run(Surfing.new)
+module Rack
+  module Handler
+    class TinyWebServer
+      def self.run(app, options)
+        host = options[:host] || 'localhost'
+        port = options[:port] || 2000
+        ::TinyWebServer.new(host, port).run(app)
+      end
+    end
+  end
+end
