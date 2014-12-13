@@ -1,17 +1,13 @@
+require 'rack'
+require 'pry'
+
 class Surfing
   def call(env)
-    document_name = env[:path].slice(/\/(.*)/)
-    suffix = document_name.slice(/\.(.*)/)
-    content_type = case suffix
-                  when ".html" then 'text/html'
-                  when ".css" then 'text/css'
-                  when '.jpg' then 'image/jpeg'
-                  end
-    document_path = "documents#{document_name}"
-    if File.exists?(document_path)
-      [200, {'Date' => Time.now.ctime, 'Content-Type' => content_type}, [File.read(document_path)]]
+    request = Rack::Request.new(env)
+    if request.env['PATH_INFO'] == '/'
+      Rack::File.new('documents/index.html').call(env)
     else
-      [404, {'Date' => Time.now.ctime, 'Content-Type' => 'text/html'}, ["<html><body><h1>Can't find the page you requested </h1></body></html>"]]
+      Rack::File.new('documents').call(env)
     end
   end
 end
